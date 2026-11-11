@@ -1,13 +1,13 @@
-import streamlit as st
+import streamlit as str_lit
 import pandas as pd
 import numpy as np
 import ccxt
 
 # CONFIGURAÇÃO DE PÁGINA ULTRA-ESTÁVEL
-st.set_page_config(page_title="PRO-GMS Quantitativo v5.9.0", layout="wide")
+str_lit.set_page_config(page_title="PRO-GMS Quantitativo v5.9.0", layout="wide")
 
 # FIXAÇÃO DE CSS PARA OPACIDADE 100%
-st.markdown("""
+str_lit.markdown("""
     <style>
     [data-testid="stAppViewBlockContainer"], [data-testid="stVerticalBlock"], .stMarkdown, .element-container {
         opacity: 1.0 !important;
@@ -19,11 +19,37 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("📊 PRO-GMS Quantitativo v5.9.0")
-st.caption("Foco Operacional: Caça a Manipulações HFT | SMART TRADE MANAGER & GESTÃO DE RISCO")
+# --- SISTEMA DE AUTENTICAÇÃO POR SENHA NA NUVEM ---
+def check_password():
+    """Retorna True se o usuário digitou a senha correta."""
+    def password_entered():
+        if str_lit.session_state["password"] == "progms2026": # Defina aqui a sua senha segura
+            str_lit.session_state["password_correct"] = True
+            del str_lit.session_state["password"]  # Não armazena a senha
+        else:
+            str_lit.session_state["password_correct"] = False
 
-# --- CONEXÃO COM A API DA BITGET ---
-@st.cache_resource
+    if "password_correct" not in str_lit.session_state:
+        str_lit.subheader("🔒 Acesso Restrito — PRO-GMS Quantitativo")
+        str_lit.text_input("Digite a Senha de Acesso:", type="password", on_change=password_entered, key="password")
+        return False
+    elif not str_lit.session_state["password_correct"]:
+        str_lit.subheader("🔒 Acesso Restrito — PRO-GMS Quantitativo")
+        str_lit.text_input("Digite a Senha de Acesso:", type="password", on_change=password_entered, key="password")
+        str_lit.error("😕 Senha incorreta. Tente novamente.")
+        return False
+    else:
+        return True
+
+if not check_password():
+    str_lit.stop()  # Para a execução do app se não estiver logado
+
+# --- APLICATIVO PRINCIPAL ---
+str_lit.title("📊 PRO-GMS Quantitativo v5.9.0")
+str_lit.caption("Foco Operacional: Caça a Manipulações HFT | SMART TRADE MANAGER & GESTÃO DE RISCO")
+
+# CONEXÃO COM A API DA BITGET
+@str_lit.cache_resource
 def init_exchange():
     return ccxt.bitget({'options': {'defaultType': 'swap'}, 'timeout': 10000, 'enableRateLimit': True})
 
@@ -38,7 +64,6 @@ LISTA_30_MOEDAS = [
     "SEI/USDT:USDT", "TIA/USDT:USDT", "SFT/USDT:USDT", "GTC/USDT:USDT", "FET/USDT:USDT"
 ]
 
-# Função para formatar valores grandes em K, M e B
 def formatar_valor_financeiro(valor):
     if valor >= 1e9:
         return f"${valor / 1e9:.2f}B"
@@ -49,7 +74,7 @@ def formatar_valor_financeiro(valor):
     else:
         return f"${valor:.2f}"
 
-@st.cache_data(ttl=15)
+@str_lit.cache_data(ttl=15)
 def fetch_advanced_focus_engine(symbol, timeframe='4h'):
     try:
         if ":" not in symbol: 
@@ -70,7 +95,6 @@ def fetch_advanced_focus_engine(symbol, timeframe='4h'):
         asks_validos = [float(level[0]) for level in orderbook['asks'] if float(level[0]) > preco_atual]
         parede_venda = float(min(asks_validos)) if asks_validos else float(preco_atual + (atr_atual * 0.5))
 
-        # Cálculo de Volume e Open Interest Estimado em USDT
         volume_medio_recente = df['volume'].iloc[-5:].mean()
         volume_oi_estimado = volume_medio_recente * preco_atual
 
@@ -90,7 +114,6 @@ def fetch_advanced_focus_engine(symbol, timeframe='4h'):
         dec = 4 if preco_atual < 1.0 else 2
         dist_percentual = abs((preco_atual - suporte_hft) / preco_atual) * 100
 
-        # Sensor de Contexto Macro Baseado no Livro de Ofertas
         if preco_atual <= (suporte_hft * 1.015):
             ctx_tipo = "FUNDO"
             ctx_status = "FASE DE FUNDO CÍCLICO (COMPRA)"
@@ -111,7 +134,6 @@ def fetch_advanced_focus_engine(symbol, timeframe='4h'):
             'ctx_status': ctx_status, 'ctx_rule': ctx_rule, 'ctx_tipo': ctx_tipo
         }
     except:
-        # Bloco de segurança devidamente blindado contra erros de aspas
         return {
             'ativo': symbol, 'preco': 73320.30 if "BTC" in symbol else 10.22, 'suporte': 72950.00 if "BTC" in symbol else 10.15, 
             'parede_venda': 73540.00 if "BTC" in symbol else 10.60, 'atr': 1077.78 if "BTC" in symbol else 0.72, 'dist': 0.50, 'dec': 2, 
@@ -122,74 +144,68 @@ def fetch_advanced_focus_engine(symbol, timeframe='4h'):
         }
 
 # INTERFACE LATERAL
-st.sidebar.header("⚙️ Configurações do Robô")
-moedas_selecionadas = st.sidebar.multiselect(
+str_lit.sidebar.header("⚙️ Configurações do Robô")
+moedas_selecionadas = str_lit.sidebar.multiselect(
     "Moedas em Monitoramento Ativo:", 
     LISTA_30_MOEDAS, 
     default=["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT", "ADA/USDT:USDT", "LINK/USDT:USDT"]
 )
 
-# SELETOR DE LENTES (TIMEFRAME)
-timeframe = st.sidebar.selectbox("Timeframe Principal:", ["15m", "1h", "4h", "1d"], index=2)
+timeframe = str_lit.sidebar.selectbox("Timeframe Principal:", ["15m", "1h", "4h", "1d"], index=2)
 
-# BOTÃO DE VARREDURA GERAL
-if st.sidebar.button("⚡ Executar Varredura Geral"):
-    st.sidebar.success("Varredura executada com sucesso em todas as lentes!")
+if str_lit.sidebar.button("⚡ Executar Varredura Geral"):
+    str_lit.sidebar.success("Varredura executada com sucesso em todas as lentes!")
 
-# NOVA FUNÇÃO 1: CAIXA DE SELEÇÃO PARA POSIÇÕES ATIVAS (MONITORAMENTO FOCADO)
-st.sidebar.write("---")
-st.sidebar.subheader("🎯 Posições Abertas na Corretora")
-st.sidebar.caption("Marque a moeda para ativar o Smart Trade Manager e Alvos Dinâmicos:")
+str_lit.sidebar.write("---")
+str_lit.sidebar.subheader("🎯 Posições Abertas na Corretora")
+str_lit.sidebar.caption("Marque a moeda para ativar o Smart Trade Manager e Alvos Dinâmicos:")
 
 posicoes_ativas_usuario = []
 for m in moedas_selecionadas:
     nome_limpo = str(m.split(":")[0])
-    if st.sidebar.checkbox(f"Em operação: {nome_limpo}", value=False):
+    if str_lit.sidebar.checkbox(f"Em operação: {nome_limpo}", value=False):
         posicoes_ativas_usuario.append(m)
 
-# TRAVA DE SEGURANÇA PATRIMONIAL: FORÇA A LISTA A NUNCA FICAR EM BRANCO
 LISTA_FINAL = moedas_selecionadas if moedas_selecionadas else ["BTC/USDT:USDT"]
 
-# 1. SINALIZADOR MACRO SUPERIOR DINÂMICO
+# SINALIZADOR MACRO
 btc_status = fetch_advanced_focus_engine("BTC/USDT:USDT", timeframe)
 if btc_status['status_trava'] == "BLOQUEADO":
-    st.error(f"🚨 **SINALIZADOR MACRO DE PERIGO:** {btc_status['estouro_msg']}")
+    str_lit.error(f"🚨 **SINALIZADOR MACRO DE PERIGO:** {btc_status['estouro_msg']}")
 else:
-    st.success(f"🟢 **SINALIZADOR MACRO:** Mercado em fluxo de distribuição padrão e seguro ({btc_status['estouro_msg']}).")
+    str_lit.success(f"🟢 **SINALIZADOR MACRO:** Mercado em fluxo de distribuição padrão e seguro ({btc_status['estouro_msg']}).")
 
-# 2. BLOCO DO FOCO CIRÚRGICO CENTRAL
-st.write("---")
-st.subheader("🔬 Foco Cirúrgico e Laudo Técnico do Ativo Selecionado")
+# FOCO CIRÚRGICO
+str_lit.write("---")
+str_lit.subheader("🔬 Foco Cirúrgico e Laudo Técnico do Ativo Selecionado")
 
 opcoes_limpas = [str(m.split(":")[0]) for m in LISTA_FINAL]
-moeda_foco_limpa = st.selectbox("Selecione o ativo para focar:", opcoes_limpas, index=0)
+moeda_foco_limpa = str_lit.selectbox("Selecione o ativo para focar:", opcoes_limpas, index=0)
 
 ativo_real = LISTA_FINAL[opcoes_limpas.index(moeda_foco_limpa)]
 res_foco = fetch_advanced_focus_engine(ativo_real, timeframe)
 
-# EXIBIÇÃO DO SENSOR DE CONTEXTO MACRO
 txt_status = res_foco['ctx_status']
 txt_rule = res_foco['ctx_rule']
 
 if res_foco['ctx_tipo'] == "FUNDO":
-    st.success(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
+    str_lit.success(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
 elif res_foco['ctx_tipo'] == "TOPO":
-    st.error(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
+    str_lit.error(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
 else:
-    st.warning(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
+    str_lit.warning(f"🔍 **CONTEXTO DO MERCADO:** {txt_status}\n\n{txt_rule}")
 
-st.markdown("### 🛡️ FILTRO RISCO DE ESTOURO & EXAUSTÃO")
-st.write(f"> 🚀 {res_foco['estouro_msg']}")
-st.write(f"> ⚡ {res_foco['anulado_msg']}")
+str_lit.markdown("### 🛡️ FILTRO RISCO DE ESTOURO & EXAUSTÃO")
+str_lit.write(f"> 🚀 {res_foco['estouro_msg']}")
+str_lit.write(f"> ⚡ {res_foco['anulado_msg']}")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = str_lit.columns(3)
 col1.metric("Preço Spot Real", f"${res_foco['preco']:.2f}")
 col2.metric("Open Interest", "Sincronizado")
-col3.metric("Métrica de Volatilidade (ATR)", f"${res_foco['atr']:.2f}", help="Amplitude Média de Oscilação: Mede o tamanho médio dos candles no período selecionado. Serve para calibrar a distância de stop e alvos.")
+col3.metric("Métrica de Volatilidade (ATR)", f"${res_foco['atr']:.2f}")
 
 entrada = res_foco['parede_venda']
 
-# NOVA FUNÇÃO 2: ALVOS DINÂMICOS BASEADOS NA SUSTENTAÇÃO DA PERNADA (EXPANSÃO INTELIGENTE)
 fator_extensao = 1.2 if res_foco['status_trava'] == "VALIDADO" else 1.0
 tp1 = entrada - (res_foco['atr'] * 0.4 * fator_extensao)
 tp2 = entrada - (res_foco['atr'] * 0.8 * fator_extensao)
@@ -199,31 +215,29 @@ pct_tp2 = ((tp2 - entrada) / entrada) * 100
 
 oi_formatado = formatar_valor_financeiro(res_foco['volume_oi'])
 
-st.markdown("### 📋 Coordenadas de Ordens Limites para Posicionamento (Armadilha de Pavio)")
-st.warning("⚠️ **DIRETRIZ DA OPERAÇÃO:** Executar Ordem Limite de VENDA (SHORT)")
+str_lit.markdown("### 📋 Coordenadas de Ordens Limites para Posicionamento (Armadilha de Pavio)")
+str_lit.warning("⚠️ **DIRETRIZ DA OPERAÇÃO:** Executar Ordem Limite de VENDA (SHORT)")
 
-col_c, col_d = st.columns(2)
+col_c, col_d = str_lit.columns(2)
 with col_c:
-    st.markdown("**Alvos Dinâmicos e Assimétricos (60% / 40%):**")
-    st.info(f"🟢 Entrada (Gatilho Limite): ${entrada:.2f}")
-    st.info("🎯 Saída Dinâmica 1 (60%): $" + f"{tp1:.2f} (~{pct_tp1:.1f}%)")
-    st.info("🎯 Saída Dinâmica 2 (40% - Alvo Estendido): $" + f"{tp2:.2f} (~{pct_tp2:.1f}%)")
+    str_lit.markdown("**Alvos Dinâmicos e Assimétricos (60% / 40%):**")
+    str_lit.info(f"🟢 Entrada (Gatilho Limite): ${entrada:.2f}")
+    str_lit.info("🎯 Saída Dinâmica 1 (60%): $" + f"{tp1:.2f} (~{pct_tp1:.1f}%)")
+    str_lit.info("🎯 Saída Dinâmica 2 (40% - Alvo Estendido): $" + f"{tp2:.2f} (~{pct_tp2:.1f}%)")
 with col_d:
-    st.markdown("**Métricas de Proximidade & Gestão de Risco:**")
-    st.text("• Distância da maior parede: " + f"{res_foco['dist']:.2f}% (Afastamento até o lote institucional)")
-    st.text("• Volume OI Estimado: " + f"{oi_formatado} USDT (Volume financeiro alocado)")
+    str_lit.markdown("**Métricas de Proximidade & Gestão de Risco:**")
+    str_lit.text("• Distância da maior parede: " + f"{res_foco['dist']:.2f}%")
+    str_lit.text("• Volume OI Estimado: " + f"{oi_formatado} USDT")
 
-# NOVO BLOCO: SMART TRADE MANAGER (MONITORAMENTO EXCLUSIVO DAS POSIÇÕES MARCADAS)
+# SMART TRADE MANAGER
 if posicoes_ativas_usuario:
-    st.write("---")
-    st.subheader("🛡️ Smart Trade Manager: Saúde e Monitoramento de Posições em Operação")
-    st.caption("Análise de anomalias em tempo real dedicada estritamente ao seu capital alocado:")
+    str_lit.write("---")
+    str_lit.subheader("🛡️ Smart Trade Manager: Saúde e Monitoramento de Posições em Operação")
+    str_lit.caption("Análise de anomalias em tempo real dedicada estritamente ao seu capital alocado:")
 
     dados_gestao = []
     for pos in posicoes_ativas_usuario:
         res_pos = fetch_advanced_focus_engine(pos, timeframe)
-        
-        # Motor de verificação de anomalia (Saudável, Alerta, Em Risco / Cancelar)
         if res_pos['status_trava'] == "BLOQUEADO":
             status_saude = "🔴 EM RISCO / CANCELAR"
         elif res_pos['volume_oi'] < 50000:
@@ -239,13 +253,13 @@ if posicoes_ativas_usuario:
         })
     
     df_gestao = pd.DataFrame(dados_gestao)
-    st.dataframe(df_gestao, use_container_width=True, hide_index=True)
+    str_lit.dataframe(df_gestao, use_container_width=True, hide_index=True)
 
-# 3. TABELA RADAR DE TODOS OS ATIVOS SELECIONADOS (RODAPÉ)
-st.write("---")
-st.subheader("📋 Tabela Radar: Resumo e Coordenadas de Todos os Ativos Selecionados")
+# TABELA RADAR GERAL
+str_lit.write("---")
+str_lit.subheader("📋 Tabela Radar: Resumo e Coordenadas de Todos os Ativos Selecionados")
 
-with st.spinner("Compilando dados de todas as moedas para o Radar HFT..."):
+with str_lit.spinner("Compilando dados de todas as moedas para o Radar HFT..."):
     dados_tabela = []
     for moeda in LISTA_FINAL:
         res_moeda = fetch_advanced_focus_engine(moeda, timeframe)
@@ -260,4 +274,4 @@ with st.spinner("Compilando dados de todas as moedas para o Radar HFT..."):
         })
 
     df_radar = pd.DataFrame(dados_tabela)
-    st.dataframe(df_radar, use_container_width=True, hide_index=True)
+    str_lit.dataframe(df_radar, use_container_width=True, hide_index=True)
